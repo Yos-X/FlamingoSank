@@ -44,13 +44,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.ripple
 import androidx.compose.material3.Icon
@@ -80,6 +83,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -90,14 +94,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.google.accompanist.insets.ProvideWindowInsets
-import com.google.accompanist.insets.navigationBarsHeight
-import com.google.accompanist.navigation.animation.AnimatedNavHost
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
@@ -171,552 +173,557 @@ class MainActivity : BaseActivity() {
         enableEdgeToEdge()
         setContent {
             YosMusicTheme {
-                ProvideWindowInsets {
-                    val context = LocalContext.current
-                    val density = LocalDensity.current
+                val context = LocalContext.current
+                val density = LocalDensity.current
 
-                    val offsetY = remember("MainActivity_offsetY") { Animatable(0f) }
-                    val parentHeight =
-                        remember("MainActivity_parentHeight") { mutableIntStateOf(0) }
-                    val screenCorner = remember("MainActivity_screenCorner") {
-                        val corner = SettingsLibrary.ScreenCorner.toInt()
-                        if (corner == 0) 1 else corner
+                val offsetY = remember("MainActivity_offsetY") { Animatable(0f) }
+                val parentHeight =
+                    remember("MainActivity_parentHeight") { mutableIntStateOf(0) }
+                val screenCorner = remember("MainActivity_screenCorner") {
+                    val corner = SettingsLibrary.ScreenCorner.toInt()
+                    if (corner == 0) 1 else corner
+                }
+
+                val scope = rememberCoroutineScope()
+
+                /*val parentHeightDp = remember(parentHeight.intValue) {
+                    with(density) {
+                        parentHeight.intValue.toDp()
+                    }
+                }*/
+
+                println("重组：底层载体")
+
+                /*Surface(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    color = Color.Transparent,
+                    contentColor = Color.Black withNight Color.White
+                ) {*/
+                    println("重组：主载体")
+                    val miniPlayerHeight = 62.dp
+                    val height = remember("MainActivity_height") { mutableIntStateOf(0) }
+
+                    val navHeight = remember("MainActivity_navHeight") {
+                        with(density) {
+                            height.intValue.toDp().plus(miniPlayerHeight)
+                        }
+                    }
+                    // 逻辑初始化区域
+                    val navController = rememberNavController()
+                    val navSpec = spring(
+                        stiffness = 400f,
+                        dampingRatio = 1f,
+                        visibilityThreshold = 0.001f
+                    )
+                    // val scaffoldState = rememberBottomSheetScaffoldState()
+                    val route = rememberSaveable(key = "MainActivity_route") {
+                        mutableStateOf(UI.HomePage)
+                    }
+                    // 记录当前路线
+
+                    YosWrapper {
+                        val backstackEntry =
+                            navController.currentBackStackEntryAsState()
+                        route.value =
+                            backstackEntry.value?.destination?.route ?: UI.HomePage
                     }
 
-                    val scope = rememberCoroutineScope()
+                    // 显示控制区域
+                    val yosBottomSheetConfig = object {
+                        val progress
+                            get() = if (parentHeight.intValue == 0) 0f else abs(offsetY.value / parentHeight.intValue).coerceIn(
+                                0f,
+                                1f
+                            )
+                        val menuAlpha
+                            get() = 1f - progress
+                        val mainContainerCardScale
+                            get() = 0.9f + (0.1f * menuAlpha)
+                        val thisShowCorner
+                            get() = progress > 0f
 
-                    /*val parentHeightDp = remember(parentHeight.intValue) {
-                        with(density) {
-                            parentHeight.intValue.toDp()
+                        val barShowCorner
+                            get() = progress < 1f
+                        val showMenu
+                            get() = progress < 1f
+
+                        val barShapeValue
+                            get() = lerp(12, screenCorner, progress)
+
+                        val RTCorner
+                            get() = screenCorner == 0
+                    }
+
+                    val showNowPlaying = remember("MainActivity_showNowPlaying") {
+                        derivedStateOf {
+                            yosBottomSheetConfig.menuAlpha < 0.3f
                         }
-                    }*/
+                    }
 
-                    println("重组：底层载体")
-
-                    /*Surface(
-                        modifier = Modifier
-                            .fillMaxSize(),
-                        color = Color.Transparent,
-                        contentColor = Color.Black withNight Color.White
-                    ) {*/
-                        println("重组：主载体")
-                        val miniPlayerHeight = 62.dp
-                        val height = remember("MainActivity_height") { mutableIntStateOf(0) }
-
-                        val navHeight = remember("MainActivity_navHeight") {
-                            with(density) {
-                                height.intValue.toDp().plus(miniPlayerHeight)
-                            }
-                        }
-                        // 逻辑初始化区域
-                        val navController = rememberNavController()
-                        val navSpec = spring(
-                            stiffness = 400f,
-                            dampingRatio = 1f,
-                            visibilityThreshold = 0.001f
-                        )
-                        // val scaffoldState = rememberBottomSheetScaffoldState()
-                        val route = rememberSaveable(key = "MainActivity_route") {
-                            mutableStateOf(UI.HomePage)
-                        }
-                        // 记录当前路线
-
-                        YosWrapper {
-                            val backstackEntry =
-                                navController.currentBackStackEntryAsState()
-                            route.value =
-                                backstackEntry.value?.destination?.route ?: UI.HomePage
+                    val nowPageNowPlaying =
+                        rememberSaveable(key = "MainActivity_nowPageNowPlaying") {
+                            mutableStateOf(Album)
                         }
 
-                        // 显示控制区域
-                        val yosBottomSheetConfig = object {
-                            val progress
-                                get() = if (parentHeight.intValue == 0) 0f else abs(offsetY.value / parentHeight.intValue).coerceIn(
-                                    0f,
-                                    1f
-                                )
-                            val menuAlpha
-                                get() = 1f - progress
-                            val mainContainerCardScale
-                                get() = 0.9f + (0.1f * menuAlpha)
-                            val thisShowCorner
-                                get() = progress > 0f
+                    val hazeState = remember { HazeState() }
 
-                            val barShowCorner
-                                get() = progress < 1f
-                            val showMenu
-                                get() = progress < 1f
-
-                            val barShapeValue
-                                get() = lerp(12, screenCorner, progress)
-
-                            val RTCorner
-                                get() = screenCorner == 0
-                        }
-
-                        val showNowPlaying = remember("MainActivity_showNowPlaying") {
-                            derivedStateOf {
-                                yosBottomSheetConfig.menuAlpha < 0.3f
-                            }
-                        }
-
-                        val nowPageNowPlaying =
-                            rememberSaveable(key = "MainActivity_nowPageNowPlaying") {
-                                mutableStateOf(Album)
-                            }
-
-                        val hazeState = remember { HazeState() }
-
-                        YosWrapper {
-                            val isNight = isFlamingoInDarkMode()
-                            if (showNowPlaying.value) {
-                                rememberSystemUiController().run {
-                                    setNavigationBarColor(
-                                        Color.Transparent,
-                                        darkIcons = false,
-                                        navigationBarContrastEnforced = false
-                                    )
-                                    setStatusBarColor(Color.Transparent, darkIcons = false)
-                                    var activity = LocalContext.current as? Activity
-                                    DisposableEffect(Unit) {
-                                        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                                        onDispose {
-                                            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                                            activity = null
-                                        }
-                                    }
-                                }
-                            } else {
-                                rememberSystemUiController().run {
-                                    setNavigationBarColor(
-                                        color = Color.Transparent,
-                                        darkIcons = !isNight,
-                                        navigationBarContrastEnforced = false
-                                    )
-
-                                    setStatusBarColor(Color.Transparent, darkIcons = !isNight)
+                    YosWrapper {
+                        val isNight = isFlamingoInDarkMode()
+                        val view = LocalView.current
+                        val activity = LocalContext.current as? Activity
+                        if (showNowPlaying.value) {
+                            SetSystemBarsAppearance(view = view, darkIcons = false)
+                            var currentActivity = activity
+                            DisposableEffect(Unit) {
+                                currentActivity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                                onDispose {
+                                    currentActivity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                                    currentActivity = null
                                 }
                             }
+                        } else {
+                            SetSystemBarsAppearance(view = view, darkIcons = !isNight)
                         }
+                    }
 
-                        // 导航区域
-                        val defaultHome = stringResource(id = R.string.page_home_title)
+                    // 导航区域
+                    val defaultHome = stringResource(id = R.string.page_home_title)
 
-                        val nowLabel = rememberSaveable(key = "MainActivity_nowLabel") {
-                            mutableStateOf(defaultHome)
-                        }
+                    val nowLabel = rememberSaveable(key = "MainActivity_nowLabel") {
+                        mutableStateOf(defaultHome)
+                    }
 
-                        val pagerState = rememberPagerState(pageCount = { 2 })
+                    val pagerState = rememberPagerState(pageCount = { 2 })
 
-                        // 以下为实际显示
+                    // 以下为实际显示
 
-                        // 主界面
-                        YosWrapper {
-                            println("重组：主界面")
+                    // 主界面
+                    YosWrapper {
+                        println("重组：主界面")
 
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        val thisMainContainerCardScale =
-                                            yosBottomSheetConfig.mainContainerCardScale
-                                        scaleX = thisMainContainerCardScale
-                                        scaleY = thisMainContainerCardScale
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val thisMainContainerCardScale =
+                                        yosBottomSheetConfig.mainContainerCardScale
+                                    scaleX = thisMainContainerCardScale
+                                    scaleY = thisMainContainerCardScale
+                                }
+                                .graphicsLayer {
+                                    //compositingStrategy = CompositingStrategy.Offscreen
+                                    //transformOrigin = TransformOrigin(0.5f, 1f)
+
+                                    if (yosBottomSheetConfig.thisShowCorner && !yosBottomSheetConfig.RTCorner) {
+                                        compositingStrategy = CompositingStrategy.Offscreen
+                                        clip = true
+                                        shape = YosRoundedCornerShape(screenCorner.dp)
+                                    } else {
+                                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                                        clip = false
                                     }
-                                    .graphicsLayer {
-                                        //compositingStrategy = CompositingStrategy.Offscreen
-                                        //transformOrigin = TransformOrigin(0.5f, 1f)
 
-                                        if (yosBottomSheetConfig.thisShowCorner && !yosBottomSheetConfig.RTCorner) {
-                                            compositingStrategy = CompositingStrategy.Offscreen
-                                            clip = true
-                                            shape = YosRoundedCornerShape(screenCorner.dp)
+                                    if (!yosBottomSheetConfig.barShowCorner) {
+                                        alpha = 0f
+                                    }
+                                }
+
+                            ,
+                            color = MaterialTheme.colorScheme.background,
+                            contentColor = MaterialTheme.colorScheme.onBackground
+                        ) {
+                            // 主界面本体
+                            SharedTransitionLayout {
+                                YosWrapper {
+                                    BackHandler(showNowPlaying.value) {
+                                        // println("isVisible: ${showNowPlaying.value}, nowPageNowPlaying.value: ${nowPageNowPlaying.value}")
+                                        if (nowPageNowPlaying.value != Album) {
+                                            nowPageNowPlaying.value =
+                                                Album
                                         } else {
-                                            compositingStrategy = CompositingStrategy.ModulateAlpha
-                                            clip = false
+                                            scope.launch {
+                                                // scaffoldState.bottomSheetState.partialExpand()
+                                                offsetY.animateTo(0f, animationSpec = navSpec)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                YosWrapper {
+                                    val animateSpeed = 340
+                                    val animationSpec: FiniteAnimationSpec<IntSize> =
+                                        tween(
+                                            durationMillis = animateSpeed,
+                                            easing = EaseOutQuart
+                                        )
+                                    val fadeAnimationSpec: FiniteAnimationSpec<Float> =
+                                        tween(
+                                            durationMillis = animateSpeed - 160,
+                                            easing = EaseOutQuart
+                                        )
+                                    NavHost(
+                                        modifier = Modifier.then(
+                                            if (SettingsLibrary.BarBlurEffect && !showNowPlaying.value) {
+                                                Modifier.haze(state = hazeState)
+                                            } else {
+                                                //println("haze 父控件效果关闭")
+                                                Modifier
+                                            }
+                                        ),
+                                        navController = navController,
+                                        startDestination = UI.HomePage,
+                                        enterTransition = {
+                                            fadeIn(animationSpec = fadeAnimationSpec) + expandHorizontally(
+                                                animationSpec = animationSpec,
+                                                clip = false,
+                                                expandFrom = Alignment.Start
+                                            ) {
+                                                -it / 2
+                                            }
+                                        },
+                                        exitTransition = {
+                                            fadeOut(animationSpec = fadeAnimationSpec) + shrinkHorizontally(
+                                                animationSpec = animationSpec,
+                                                clip = false,
+                                                shrinkTowards = Alignment.End
+                                            ) {
+                                                it / 2
+                                            }
+                                        },
+                                        popEnterTransition = {
+                                            fadeIn(animationSpec = fadeAnimationSpec) + expandHorizontally(
+                                                animationSpec = animationSpec,
+                                                clip = false,
+                                                expandFrom = Alignment.End
+                                            ) {
+                                                it / 2
+                                            }
+                                        },
+                                        popExitTransition = {
+                                            fadeOut(animationSpec = fadeAnimationSpec) + shrinkHorizontally(
+                                                animationSpec = animationSpec,
+                                                clip = false,
+                                                shrinkTowards = Alignment.Start
+                                            ) {
+                                                -it / 2
+                                            }
+                                        }) {
+
+                                        composable(UI.HomePage) {
+                                            HomeNav(
+                                                navController,
+                                                pagerState,
+                                                imageViewModel
+                                            ) {
+                                                nowLabel.value = it
+                                            }
+                                        }
+                                        composable(UI.Library) {
+                                            Library(
+                                                navController
+                                            )
                                         }
 
-                                        if (!yosBottomSheetConfig.barShowCorner) {
-                                            alpha = 0f
+                                        composable(UI.PlayLists) {
+                                            PlayLists(navController)
+                                        }
+                                        composable(UI.NormalMusic) {
+                                            NormalMusic(navController)
+                                        }
+                                        composable(UI.LocalAlbums) {
+                                            LocalAlbums(
+                                                navController,
+                                                this@SharedTransitionLayout,
+                                                this@composable
+                                            )
+                                        }
+                                        composable(UI.LocalArtists) {
+                                            LocalArtists(navController)
+                                        }
+
+                                        composable(UI.AlbumInfo) {
+                                            AlbumInfo(
+                                                navController,
+                                                this@SharedTransitionLayout,
+                                                this@composable
+                                            )
+                                        }
+
+                                        composable(UI.Settings.Main) {
+                                            Settings(
+                                                navController
+                                            )
+                                        }
+                                        composable(UI.Settings.LibraryOverview) {
+                                            LibraryOverview(navController)
+                                        }
+                                        composable(UI.Settings.LyricGetter) {
+                                            LyricGetter(navController)
+                                        }
+                                        composable(ExoplayerSetting) {
+                                            ExoPlayerSettings(navController)
+                                        }
+                                        composable(UI.Settings.About) {
+                                            About(
+                                                navController
+                                            )
+                                        }
+                                        composable(UI.Settings.MediaCodec) {
+                                            MediaCodec(navController)
+                                        }
+
+                                        composable(UI.Settings.LyricSetting) {
+                                            LyricSetting(navController)
+                                        }
+                                        composable(UI.Settings.UserInterfaceSetting) {
+                                            UserInterfaceSetting(navController)
+                                        }
+                                        composable(UI.Settings.NotificationSetting) {
+                                            NotificationSetting(navController)
                                         }
                                     }
 
-                                ,
-                                color = MaterialTheme.colorScheme.background,
-                                contentColor = MaterialTheme.colorScheme.onBackground
-                            ) {
-                                // 主界面本体
-                                SharedTransitionLayout {
-                                    YosWrapper {
-                                        BackHandler(showNowPlaying.value) {
-                                            // println("isVisible: ${showNowPlaying.value}, nowPageNowPlaying.value: ${nowPageNowPlaying.value}")
-                                            if (nowPageNowPlaying.value != Album) {
-                                                nowPageNowPlaying.value =
-                                                    Album
+
+                                }
+                            }
+
+                            // 底部导航栏
+                            YosWrapper {
+                                val color =
+                                    Color(0xFFF5F5F5) withNight /*Color(0xFF111111)*/ Color.Black
+                                Box(
+                                    Modifier
+                                        .fillMaxSize(),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    // 背景
+                                    if (!showNowPlaying.value && SettingsLibrary.BarBlurEffect) {
+                                        Spacer(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                                                .height(128.dp)
+                                                .graphicsLayer {
+                                                    compositingStrategy =
+                                                        CompositingStrategy.Offscreen
+                                                }
+                                                .hazeChild(
+                                                    hazeState,
+                                                    HazeMaterials
+                                                        .regular(
+                                                            color
+                                                        )
+                                                        .copy(
+                                                            blurRadius = 48.dp
+                                                        )
+                                                )
+                                                .drawWithCache {
+                                                    onDrawWithContent {
+                                                        val colors = listOf(
+                                                            Color.Transparent,
+                                                            color.copy(alpha = 0.3f),
+                                                            color.copy(alpha = 0.6f),
+                                                            color,
+                                                            color,
+                                                            color,
+                                                            color,
+                                                            color
+                                                        )
+
+                                                        drawContent()
+
+                                                        drawRect(
+                                                            brush = Brush.verticalGradient(
+                                                                colors
+                                                            ),
+                                                            blendMode = BlendMode.DstIn
+                                                        )
+                                                    }
+                                                }
+                                        )
+                                    } else {
+                                        //println("haze 底栏效果关闭")
+                                        Spacer(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                                                .height(128.dp)
+                                                .background(
+                                                    brush = Brush.verticalGradient(
+                                                        colors = listOf(
+                                                            Color.Transparent,
+                                                            color.copy(alpha = 0.3f),
+                                                            color.copy(alpha = 0.6f),
+                                                            color,
+                                                            color,
+                                                            color,
+                                                            color,
+                                                            color
+                                                        ),
+                                                        startY = 0f,
+                                                        endY = Float.POSITIVE_INFINITY
+                                                    )
+                                                )
+                                        )
+                                    }
+
+                                    BottomNavigator(
+                                        nowLabel = { nowLabel.value },
+                                        onLabelChange = {
+                                            nowLabel.value = it
+
+                                            val home =
+                                                context.getString(R.string.page_home_title)
+                                            val library =
+                                                context.getString(R.string.page_library_title)
+                                            if (route.value == UI.HomePage) {
+                                                scope.launch {
+                                                    pagerState.animateScrollToPage(
+                                                        when (it) {
+                                                            home -> 0
+                                                            library -> 1
+                                                            else -> 0
+                                                        }
+                                                    )
+                                                }
                                             } else {
                                                 scope.launch {
-                                                    // scaffoldState.bottomSheetState.partialExpand()
-                                                    offsetY.animateTo(0f, animationSpec = navSpec)
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    YosWrapper {
-                                        val animateSpeed = 340
-                                        val animationSpec: FiniteAnimationSpec<IntSize> =
-                                            tween(
-                                                durationMillis = animateSpeed,
-                                                easing = EaseOutQuart
-                                            )
-                                        val fadeAnimationSpec: FiniteAnimationSpec<Float> =
-                                            tween(
-                                                durationMillis = animateSpeed - 160,
-                                                easing = EaseOutQuart
-                                            )
-                                        AnimatedNavHost(
-                                            modifier = Modifier.then(
-                                                if (SettingsLibrary.BarBlurEffect && !showNowPlaying.value) {
-                                                    Modifier.haze(state = hazeState)
-                                                } else {
-                                                    //println("haze 父控件效果关闭")
-                                                    Modifier
-                                                }
-                                            ),
-                                            navController = navController,
-                                            startDestination = UI.HomePage,
-                                            enterTransition = {
-                                                fadeIn(animationSpec = fadeAnimationSpec) + expandHorizontally(
-                                                    animationSpec = animationSpec,
-                                                    clip = false,
-                                                    expandFrom = Alignment.Start
-                                                ) {
-                                                    -it / 2
-                                                }
-                                            },
-                                            exitTransition = {
-                                                fadeOut(animationSpec = fadeAnimationSpec) + shrinkHorizontally(
-                                                    animationSpec = animationSpec,
-                                                    clip = false,
-                                                    shrinkTowards = Alignment.End
-                                                ) {
-                                                    it / 2
-                                                }
-                                            },
-                                            popEnterTransition = {
-                                                fadeIn(animationSpec = fadeAnimationSpec) + expandHorizontally(
-                                                    animationSpec = animationSpec,
-                                                    clip = false,
-                                                    expandFrom = Alignment.End
-                                                ) {
-                                                    it / 2
-                                                }
-                                            },
-                                            popExitTransition = {
-                                                fadeOut(animationSpec = fadeAnimationSpec) + shrinkHorizontally(
-                                                    animationSpec = animationSpec,
-                                                    clip = false,
-                                                    shrinkTowards = Alignment.Start
-                                                ) {
-                                                    -it / 2
-                                                }
-                                            }) {
-
-                                            composable(UI.HomePage) {
-                                                HomeNav(
-                                                    navController,
-                                                    pagerState,
-                                                    imageViewModel
-                                                ) {
-                                                    nowLabel.value = it
-                                                }
-                                            }
-                                            composable(UI.Library) {
-                                                Library(
-                                                    navController
-                                                )
-                                            }
-
-                                            composable(UI.PlayLists) {
-                                                PlayLists(navController)
-                                            }
-                                            composable(UI.NormalMusic) {
-                                                NormalMusic(navController)
-                                            }
-                                            composable(UI.LocalAlbums) {
-                                                LocalAlbums(
-                                                    navController,
-                                                    this@SharedTransitionLayout,
-                                                    this@composable
-                                                )
-                                            }
-                                            composable(UI.LocalArtists) {
-                                                LocalArtists(navController)
-                                            }
-
-                                            composable(UI.AlbumInfo) {
-                                                AlbumInfo(
-                                                    navController,
-                                                    this@SharedTransitionLayout,
-                                                    this@composable
-                                                )
-                                            }
-
-                                            composable(UI.Settings.Main) {
-                                                Settings(
-                                                    navController
-                                                )
-                                            }
-                                            composable(UI.Settings.LibraryOverview) {
-                                                LibraryOverview(navController)
-                                            }
-                                            composable(UI.Settings.LyricGetter) {
-                                                LyricGetter(navController)
-                                            }
-                                            composable(ExoplayerSetting) {
-                                                ExoPlayerSettings(navController)
-                                            }
-                                            composable(UI.Settings.About) {
-                                                About(
-                                                    navController
-                                                )
-                                            }
-                                            composable(UI.Settings.MediaCodec) {
-                                                MediaCodec(navController)
-                                            }
-
-                                            composable(UI.Settings.LyricSetting) {
-                                                LyricSetting(navController)
-                                            }
-                                            composable(UI.Settings.UserInterfaceSetting) {
-                                                UserInterfaceSetting(navController)
-                                            }
-                                            composable(UI.Settings.NotificationSetting) {
-                                                NotificationSetting(navController)
-                                            }
-                                        }
-
-
-                                    }
-                                }
-
-                                // 底部导航栏
-                                YosWrapper {
-                                    val color =
-                                        Color(0xFFF5F5F5) withNight /*Color(0xFF111111)*/ Color.Black
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize(),
-                                        contentAlignment = Alignment.BottomCenter
-                                    ) {
-                                        // 背景
-                                        if (!showNowPlaying.value && SettingsLibrary.BarBlurEffect) {
-                                            Spacer(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .navigationBarsHeight(128.dp)
-                                                    .graphicsLayer {
-                                                        compositingStrategy =
-                                                            CompositingStrategy.Offscreen
-                                                    }
-                                                    .hazeChild(
-                                                        hazeState,
-                                                        HazeMaterials
-                                                            .regular(
-                                                                color
-                                                            )
-                                                            .copy(
-                                                                blurRadius = 48.dp
-                                                            )
-                                                    )
-                                                    .drawWithCache {
-                                                        onDrawWithContent {
-                                                            val colors = listOf(
-                                                                Color.Transparent,
-                                                                color.copy(alpha = 0.3f),
-                                                                color.copy(alpha = 0.6f),
-                                                                color,
-                                                                color,
-                                                                color,
-                                                                color,
-                                                                color
-                                                            )
-
-                                                            drawContent()
-
-                                                            drawRect(
-                                                                brush = Brush.verticalGradient(
-                                                                    colors
-                                                                ),
-                                                                blendMode = BlendMode.DstIn
-                                                            )
+                                                    pagerState.scrollToPage(
+                                                        when (it) {
+                                                            home -> 0
+                                                            library -> 1
+                                                            else -> 0
                                                         }
-                                                    }
-                                            )
-                                        } else {
-                                            //println("haze 底栏效果关闭")
-                                            Spacer(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .navigationBarsHeight(128.dp)
-                                                    .background(
-                                                        brush = Brush.verticalGradient(
-                                                            colors = listOf(
-                                                                Color.Transparent,
-                                                                color.copy(alpha = 0.3f),
-                                                                color.copy(alpha = 0.6f),
-                                                                color,
-                                                                color,
-                                                                color,
-                                                                color,
-                                                                color
-                                                            ),
-                                                            startY = 0f,
-                                                            endY = Float.POSITIVE_INFINITY
-                                                        )
-                                                    )
-                                            )
-                                        }
-
-                                        BottomNavigator(
-                                            nowLabel = { nowLabel.value },
-                                            onLabelChange = {
-                                                nowLabel.value = it
-
-                                                val home =
-                                                    context.getString(R.string.page_home_title)
-                                                val library =
-                                                    context.getString(R.string.page_library_title)
-                                                if (route.value == UI.HomePage) {
-                                                    scope.launch {
-                                                        pagerState.animateScrollToPage(
-                                                            when (it) {
-                                                                home -> 0
-                                                                library -> 1
-                                                                else -> 0
-                                                            }
-                                                        )
-                                                    }
-                                                } else {
-                                                    scope.launch {
-                                                        pagerState.scrollToPage(
-                                                            when (it) {
-                                                                home -> 0
-                                                                library -> 1
-                                                                else -> 0
-                                                            }
-                                                        )
-                                                    }
-                                                    navController.popBackStack(
-                                                        UI.HomePage,
-                                                        false
                                                     )
                                                 }
-                                            },
-                                            items = listOf(
-                                                NavItem(
-                                                    stringResource(id = R.string.page_home_title),
-                                                    R.drawable.flamingo_icon
-                                                ),
-                                                NavItem(
-                                                    stringResource(id = R.string.page_library_title),
-                                                    R.drawable.ic_uitabbar_library
+                                                navController.popBackStack(
+                                                    UI.HomePage,
+                                                    false
                                                 )
+                                            }
+                                        },
+                                        items = listOf(
+                                            NavItem(
+                                                stringResource(id = R.string.page_home_title),
+                                                R.drawable.flamingo_icon
                                             ),
-                                            modifier = Modifier
-                                                .onSizeChanged {
-                                                    height.intValue = it.height
-                                                })
-                                    }
-                                }
-                            }
-
-                            // 弹窗
-                            YosWrapper {
-                                val showCornerSetDialog =
-                                    remember("MainActivity_showCornerSetDialog") {
-                                        mutableStateOf(!SettingsLibrary.ScreenCornerSet)
-                                    }
-
-                                if (showCornerSetDialog.value) {
-                                    ScreenCornerSetDialog {
-                                        showCornerSetDialog.value = false
-                                    }
-                                } else {
-                                    CheckAndRequestPermission()
+                                            NavItem(
+                                                stringResource(id = R.string.page_library_title),
+                                                R.drawable.ic_uitabbar_library
+                                            )
+                                        ),
+                                        modifier = Modifier
+                                            .onSizeChanged {
+                                                height.intValue = it.height
+                                            })
                                 }
                             }
                         }
 
-                        // 播放条&播放界面
+                        // 弹窗
                         YosWrapper {
-                            if (height.intValue == 0) return@YosWrapper
+                            val showCornerSetDialog =
+                                remember("MainActivity_showCornerSetDialog") {
+                                    mutableStateOf(!SettingsLibrary.ScreenCornerSet)
+                                }
 
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .onSizeChanged {
-                                        parentHeight.intValue = it.height
+                            if (showCornerSetDialog.value) {
+                                ScreenCornerSetDialog {
+                                    showCornerSetDialog.value = false
+                                }
+                            } else {
+                                CheckAndRequestPermission()
+                            }
+                        }
+                    }
+
+                    // 播放条&播放界面
+                    YosWrapper {
+                        if (height.intValue == 0) return@YosWrapper
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .onSizeChanged {
+                                    parentHeight.intValue = it.height
+                                }
+                                .graphicsLayer {
+                                    //compositingStrategy = CompositingStrategy.Offscreen
+                                    val plus =
+                                        0.07f * yosBottomSheetConfig.progress
+                                    this.scaleX = 0.93f + plus
+                                    this.scaleY = 0.93f + plus
+                                    this.translationY =
+                                        -(height.intValue + 10) * (yosBottomSheetConfig.menuAlpha)
+                                    this.transformOrigin = TransformOrigin(0.5f, 1f)
+                                },
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            YosWrapper {
+                                val miniPlayerHeightPx = remember("MainActivity_miniPlayerHeightPx") {
+                                    with(density) {
+                                        miniPlayerHeight.toPx()
                                     }
-                                    .graphicsLayer {
-                                        //compositingStrategy = CompositingStrategy.Offscreen
-                                        val plus =
-                                            0.07f * yosBottomSheetConfig.progress
-                                        this.scaleX = 0.93f + plus
-                                        this.scaleY = 0.93f + plus
-                                        this.translationY =
-                                            -(height.intValue + 10) * (yosBottomSheetConfig.menuAlpha)
-                                        this.transformOrigin = TransformOrigin(0.5f, 1f)
-                                    },
-                                contentAlignment = Alignment.BottomCenter
-                            ) {
-                                YosWrapper {
-                                    val miniPlayerHeightPx = remember("MainActivity_miniPlayerHeightPx") {
-                                        with(density) {
-                                            miniPlayerHeight.toPx()
-                                        }
+                                }
+
+                                val miniPlayerShadow = remember("MainActivity_miniPlayerShadow") {
+                                    with(density) {
+                                        7.5.dp.toPx()
                                     }
+                                }
 
-                                    val miniPlayerShadow = remember("MainActivity_miniPlayerShadow") {
-                                        with(density) {
-                                            7.5.dp.toPx()
-                                        }
+                                val color = Color.White withNight Color(0xFF1C1C1E)
+
+                                println("重组：播放条&播放界面 外层")
+
+                                val dragState = rememberDraggableState { delta ->
+                                    scope.launch {
+                                        offsetY.snapTo(offsetY.value + delta)
                                     }
+                                }
 
-                                    val color = Color.White withNight Color(0xFF1C1C1E)
+                                /*.graphicsLayer {
+                                    if (yosBottomSheetConfig.barShowCorner) {
+                                        shadowElevation = 7.5.dp.toPx()
+                                        spotShadowColor = Color.Black.copy(alpha = 0.2f)
 
-                                    println("重组：播放条&播放界面 外层")
+                                        *//*compositingStrategy =
+                                                    CompositingStrategy.Offscreen*//*
+                                            }
+                                        }*/
+                                /*.drawWithContent {
+                                    drawContent()
+                                    drawOutline(
+                                        outline = navShape.createOutline(size, layoutDirection, this),
+                                        color = color.copy(alpha = yosBottomSheetConfig.menuAlpha),
+                                        style = Stroke(width = 0.3.dp.toPx())
+                                    )
+                                }*/
 
-                                    val dragState = rememberDraggableState { delta ->
-                                        scope.launch {
-                                            offsetY.snapTo(offsetY.value + delta)
-                                        }
-                                    }
+                                Surface(
+                                    modifier = Modifier.graphicsLayer {
+                                        translationY =
+                                            ((parentHeight.intValue - miniPlayerHeightPx) * (1 - yosBottomSheetConfig.progress))
 
-                                    /*.graphicsLayer {
                                         if (yosBottomSheetConfig.barShowCorner) {
-                                            shadowElevation = 7.5.dp.toPx()
+                                            shape = YosRoundedCornerShape(
+                                                roundSize = yosBottomSheetConfig.barShapeValue.dp,
+                                                mSize = Size(
+                                                    width = size.width,
+                                                    height = (miniPlayerHeightPx + (parentHeight.intValue - miniPlayerHeightPx) * yosBottomSheetConfig.progress)
+                                                )
+                                            )
+                                            shadowElevation = miniPlayerShadow
                                             spotShadowColor = Color.Black.copy(alpha = 0.2f)
-
-                                            *//*compositingStrategy =
-                                                        CompositingStrategy.Offscreen*//*
-                                                }
-                                            }*/
-                                    /*.drawWithContent {
-                                        drawContent()
-                                        drawOutline(
-                                            outline = navShape.createOutline(size, layoutDirection, this),
-                                            color = color.copy(alpha = yosBottomSheetConfig.menuAlpha),
-                                            style = Stroke(width = 0.3.dp.toPx())
-                                        )
-                                    }*/
-
-                                    Surface(
-                                        modifier = Modifier.graphicsLayer {
-                                            translationY =
-                                                ((parentHeight.intValue - miniPlayerHeightPx) * (1 - yosBottomSheetConfig.progress))
+                                        }
+                                    }
+                                        .graphicsLayer {
+                                            //translationY = ((parentHeight.intValue - miniPlayerHeightPx) * (1 - yosBottomSheetConfig.progress))
 
                                             if (yosBottomSheetConfig.barShowCorner) {
+                                                compositingStrategy = CompositingStrategy.Offscreen
+                                                clip = true
                                                 shape = YosRoundedCornerShape(
                                                     roundSize = yosBottomSheetConfig.barShapeValue.dp,
                                                     mSize = Size(
@@ -724,313 +731,295 @@ class MainActivity : BaseActivity() {
                                                         height = (miniPlayerHeightPx + (parentHeight.intValue - miniPlayerHeightPx) * yosBottomSheetConfig.progress)
                                                     )
                                                 )
-                                                shadowElevation = miniPlayerShadow
-                                                spotShadowColor = Color.Black.copy(alpha = 0.2f)
+                                            } else {
+                                                compositingStrategy = CompositingStrategy.ModulateAlpha
+                                                clip = false
                                             }
                                         }
-                                            .graphicsLayer {
-                                                //translationY = ((parentHeight.intValue - miniPlayerHeightPx) * (1 - yosBottomSheetConfig.progress))
-
-                                                if (yosBottomSheetConfig.barShowCorner) {
-                                                    compositingStrategy = CompositingStrategy.Offscreen
-                                                    clip = true
-                                                    shape = YosRoundedCornerShape(
-                                                        roundSize = yosBottomSheetConfig.barShapeValue.dp,
-                                                        mSize = Size(
-                                                            width = size.width,
-                                                            height = (miniPlayerHeightPx + (parentHeight.intValue - miniPlayerHeightPx) * yosBottomSheetConfig.progress)
+                                        .draggable(
+                                            reverseDirection = true,
+                                            orientation = Orientation.Vertical,
+                                            state = dragState,
+                                            onDragStopped = { velocity ->
+                                                offsetY.updateBounds(
+                                                    0f,
+                                                    parentHeight.intValue.toFloat()
+                                                )
+                                                scope.launch {
+                                                    //println("速度：$velocity 高度：${miniPlayerHeight + (parentHeightDp - miniPlayerHeight) * progress}")
+                                                    if (velocity < 0f) {
+                                                        offsetY.animateTo(
+                                                            0f,
+                                                            initialVelocity = velocity
                                                         )
-                                                    )
-                                                } else {
-                                                    compositingStrategy = CompositingStrategy.ModulateAlpha
-                                                    clip = false
-                                                }
-                                            }
-                                            .draggable(
-                                                reverseDirection = true,
-                                                orientation = Orientation.Vertical,
-                                                state = dragState,
-                                                onDragStopped = { velocity ->
-                                                    offsetY.updateBounds(
-                                                        0f,
-                                                        parentHeight.intValue.toFloat()
-                                                    )
-                                                    scope.launch {
-                                                        //println("速度：$velocity 高度：${miniPlayerHeight + (parentHeightDp - miniPlayerHeight) * progress}")
-                                                        if (velocity < 0f) {
-                                                            offsetY.animateTo(
-                                                                0f,
-                                                                initialVelocity = velocity
-                                                            )
-                                                        } else {
-                                                            offsetY.animateTo(
-                                                                parentHeight.intValue.toFloat(),
-                                                                initialVelocity = velocity
-                                                            )
-                                                        }
+                                                    } else {
+                                                        offsetY.animateTo(
+                                                            parentHeight.intValue.toFloat(),
+                                                            initialVelocity = velocity
+                                                        )
                                                     }
                                                 }
-                                            )
-                                            .layout { measurable, constraints ->
-                                                val placeable = measurable.measure(
-                                                    constraints.copy(
-                                                        minHeight = parentHeight.intValue,
-                                                        maxHeight = parentHeight.intValue
-                                                    )
+                                            }
+                                        )
+                                        .layout { measurable, constraints ->
+                                            val placeable = measurable.measure(
+                                                constraints.copy(
+                                                    minHeight = parentHeight.intValue,
+                                                    maxHeight = parentHeight.intValue
                                                 )
-                                                layout(
-                                                    placeable.width,
-                                                    placeable.height
-                                                ) {
-                                                    placeable.placeRelative(0, 0)
-                                                }
-                                            },
-                                        color = Color.Transparent
-                                    ) {
-                                        println("重组：播放条&播放界面")
-
-                                        val isPlaying =
-                                            rememberSaveable(key = "MainActivity_isPlaying") {
-                                                MediaViewModelObject.isPlaying
-                                            }
-
-                                        // NowPlaying
-                                        YosWrapper {
-                                            NowPlaying(
-                                                mainViewModel = mainViewModel,
-                                                mediaViewModel = mediaViewModel,
-                                                navController = navController,
-                                                isPlayingStatusLambda = { isPlaying.value },
-                                                isPlayingOnChanged = {
-                                                    isPlaying.value = it
-                                                },
-                                                nowPageLambda = { nowPageNowPlaying.value },
-                                                showMiniPlayer = { yosBottomSheetConfig.showMenu }
+                                            )
+                                            layout(
+                                                placeable.width,
+                                                placeable.height
                                             ) {
-                                                nowPageNowPlaying.value = it
+                                                placeable.placeRelative(0, 0)
                                             }
+                                        },
+                                    color = Color.Transparent
+                                ) {
+                                    println("重组：播放条&播放界面")
+
+                                    val isPlaying =
+                                        rememberSaveable(key = "MainActivity_isPlaying") {
+                                            MediaViewModelObject.isPlaying
                                         }
 
-                                        // 迷你播放状态
-                                        YosWrapper {
-                                            //println("变换：菜单透明度 $menuAlpha")
-                                            if (yosBottomSheetConfig.showMenu) {
-                                                YosWrapper {
-                                                    Column(
-                                                        Modifier
-                                                            .fillMaxSize()
-                                                            .graphicsLayer {
-                                                                compositingStrategy =
-                                                                    CompositingStrategy.ModulateAlpha
-                                                                this.alpha =
-                                                                    yosBottomSheetConfig.menuAlpha
-                                                            }
-                                                            .background(color)
-                                                    ) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .height(miniPlayerHeight)
-                                                                .clickable(
-                                                                    interactionSource = remember { MutableInteractionSource() },
-                                                                    indication = null,
-                                                                    onClick = {
-                                                                        scope.launch {
-                                                                            offsetY.animateTo(
-                                                                                parentHeight.intValue.toFloat(),
-                                                                                animationSpec = navSpec
-                                                                            )
-                                                                        }
-                                                                    })
-                                                        ) {
+                                    // NowPlaying
+                                    YosWrapper {
+                                        NowPlaying(
+                                            mainViewModel = mainViewModel,
+                                            mediaViewModel = mediaViewModel,
+                                            navController = navController,
+                                            isPlayingStatusLambda = { isPlaying.value },
+                                            isPlayingOnChanged = {
+                                                isPlaying.value = it
+                                            },
+                                            nowPageLambda = { nowPageNowPlaying.value },
+                                            showMiniPlayer = { yosBottomSheetConfig.showMenu }
+                                        ) {
+                                            nowPageNowPlaying.value = it
+                                        }
+                                    }
 
-                                                            YosWrapper {
-                                                                val showMiniBarHaze = remember(
-                                                                    "MainActivity_showMiniBarHaze",
-                                                                    yosBottomSheetConfig.menuAlpha
-                                                                ) {
-                                                                    derivedStateOf {
-                                                                        yosBottomSheetConfig.menuAlpha == 1f && SettingsLibrary.BarBlurEffect
+                                    // 迷你播放状态
+                                    YosWrapper {
+                                        //println("变换：菜单透明度 $menuAlpha")
+                                        if (yosBottomSheetConfig.showMenu) {
+                                            YosWrapper {
+                                                Column(
+                                                    Modifier
+                                                        .fillMaxSize()
+                                                        .graphicsLayer {
+                                                            compositingStrategy =
+                                                                CompositingStrategy.ModulateAlpha
+                                                            this.alpha =
+                                                                yosBottomSheetConfig.menuAlpha
+                                                        }
+                                                        .background(color)
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(miniPlayerHeight)
+                                                            .clickable(
+                                                                interactionSource = remember { MutableInteractionSource() },
+                                                                indication = null,
+                                                                onClick = {
+                                                                    scope.launch {
+                                                                        offsetY.animateTo(
+                                                                            parentHeight.intValue.toFloat(),
+                                                                            animationSpec = navSpec
+                                                                        )
                                                                     }
-                                                                }
-                                                                this@Column.AnimatedVisibility(
-                                                                    visible = showMiniBarHaze.value,
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .height(
-                                                                            navHeight
-                                                                        ),
-                                                                    enter = fadeIn(tween(100)),
-                                                                    exit = fadeOut(tween(100))
-                                                                ) {
-                                                                    Spacer(
-                                                                        modifier = Modifier
-                                                                            .fillMaxSize()
-                                                                            .hazeChild(
-                                                                                hazeState,
-                                                                                HazeMaterials
-                                                                                    .thick(
-                                                                                       color
-                                                                                    )
-                                                                                    .copy(
-                                                                                        blurRadius = 48.dp
-                                                                                    )
-                                                                            )
-                                                                    )
+                                                                })
+                                                    ) {
+
+                                                        YosWrapper {
+                                                            val showMiniBarHaze = remember(
+                                                                "MainActivity_showMiniBarHaze",
+                                                                yosBottomSheetConfig.menuAlpha
+                                                            ) {
+                                                                derivedStateOf {
+                                                                    yosBottomSheetConfig.menuAlpha == 1f && SettingsLibrary.BarBlurEffect
                                                                 }
                                                             }
+                                                            this@Column.AnimatedVisibility(
+                                                                visible = showMiniBarHaze.value,
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .height(
+                                                                        navHeight
+                                                                    ),
+                                                                enter = fadeIn(tween(100)),
+                                                                exit = fadeOut(tween(100))
+                                                            ) {
+                                                                Spacer(
+                                                                    modifier = Modifier
+                                                                        .fillMaxSize()
+                                                                        .hazeChild(
+                                                                            hazeState,
+                                                                            HazeMaterials
+                                                                                .thick(
+                                                                                   color
+                                                                                )
+                                                                                .copy(
+                                                                                    blurRadius = 48.dp
+                                                                                )
+                                                                        )
+                                                                )
+                                                            }
+                                                        }
 
+                                                        Row(
+                                                            Modifier
+                                                                .height(miniPlayerHeight)
+                                                                .fillMaxWidth()
+                                                                .padding(
+                                                                    horizontal = 8.dp
+                                                                )
+                                                        ) {
                                                             Row(
                                                                 Modifier
-                                                                    .height(miniPlayerHeight)
-                                                                    .fillMaxWidth()
-                                                                    .padding(
-                                                                        horizontal = 8.dp
+                                                                    .height(
+                                                                        miniPlayerHeight
                                                                     )
+                                                                    .weight(1f),
+                                                                verticalAlignment = Alignment.CenterVertically
                                                             ) {
-                                                                Row(
-                                                                    Modifier
-                                                                        .height(
-                                                                            miniPlayerHeight
-                                                                        )
-                                                                        .weight(1f),
-                                                                    verticalAlignment = Alignment.CenterVertically
-                                                                ) {
-                                                                    YosWrapper {
-                                                                        ShadowImageWithCache(
-                                                                            dataLambda = { MediaViewModelObject.bitmap.value },
-                                                                            contentDescription = null,
-                                                                            modifier = Modifier
-                                                                                .size(47.dp),
-                                                                            cornerRadius = 6.dp,
-                                                                            shadowAlpha = 0f,
-                                                                            imageQuality = ImageQuality.LOW
-                                                                        )
-                                                                    }
-                                                                    Column(
-                                                                        Modifier
-                                                                            .padding(
-                                                                                start = 10.dp,
-                                                                                end = 5.dp
-                                                                            )
-                                                                    ) {
-                                                                        Text(
-                                                                            text = MediaController.musicPlaying.value?.title
-                                                                                ?: defaultTitle,
-                                                                            fontWeight = FontWeight.Medium,
-                                                                            fontSize = 16.sp,
-                                                                            lineHeight = 16.sp,
-                                                                            maxLines = 1,
-                                                                            overflow = TextOverflow.Ellipsis,
-                                                                            color = Color.Black withNight Color.White
-                                                                        )
-                                                                        /*Text(
-                                                                text = musicPlaying.value?.Artist
-                                                                    ?: "未知艺术家",
-                                                                fontSize = 13.5.sp,
-                                                                lineHeight = 13.5.sp,
-                                                                modifier = Modifier.alpha(
-                                                                    0.6f
-                                                                ),
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis,
-                                                                color = Color.Black withNight Color.White
-                                                            )*/
-                                                                    }
-                                                                }
-                                                                Row(
-                                                                    Modifier
-                                                                        .fillMaxHeight()
-                                                                        .padding(end = 10.dp),
-                                                                    verticalAlignment = Alignment.CenterVertically
-                                                                ) {
-                                                                    Box(
+                                                                YosWrapper {
+                                                                    ShadowImageWithCache(
+                                                                        dataLambda = { MediaViewModelObject.bitmap.value },
+                                                                        contentDescription = null,
                                                                         modifier = Modifier
-                                                                            .size(34.dp)
-                                                                            .clickable(
-                                                                                interactionSource = remember { MutableInteractionSource() },
-                                                                                indication = ripple(
-                                                                                    bounded = false
+                                                                            .size(47.dp),
+                                                                        cornerRadius = 6.dp,
+                                                                        shadowAlpha = 0f,
+                                                                        imageQuality = ImageQuality.LOW
+                                                                    )
+                                                                }
+                                                                Column(
+                                                                    Modifier
+                                                                        .padding(
+                                                                            start = 10.dp,
+                                                                            end = 5.dp
+                                                                        )
+                                                                ) {
+                                                                    Text(
+                                                                        text = MediaController.musicPlaying.value?.title
+                                                                            ?: defaultTitle,
+                                                                        fontWeight = FontWeight.Medium,
+                                                                        fontSize = 16.sp,
+                                                                        lineHeight = 16.sp,
+                                                                        maxLines = 1,
+                                                                        overflow = TextOverflow.Ellipsis,
+                                                                        color = Color.Black withNight Color.White
+                                                                    )
+                                                                    /*Text(
+                                                            text = musicPlaying.value?.Artist
+                                                                ?: "未知艺术家",
+                                                            fontSize = 13.5.sp,
+                                                            lineHeight = 13.5.sp,
+                                                            modifier = Modifier.alpha(
+                                                                0.6f
+                                                            ),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            color = Color.Black withNight Color.White
+                                                        )*/
+                                                                }
+                                                            }
+                                                            Row(
+                                                                Modifier
+                                                                    .fillMaxHeight()
+                                                                    .padding(end = 10.dp),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .size(34.dp)
+                                                                        .clickable(
+                                                                            interactionSource = remember { MutableInteractionSource() },
+                                                                            indication = ripple(
+                                                                                bounded = false
+                                                                            ),
+                                                                            onClick = {
+                                                                                Vibrator.click(
+                                                                                    context
+                                                                                )
+                                                                                isPlaying.value =
+                                                                                    !isPlaying.value
+                                                                                if (isPlaying.value) {
+                                                                                    MediaController.mediaControl?.fadePlay()
+                                                                                } else {
+                                                                                    MediaController.mediaControl?.fadePause()
+                                                                                }
+                                                                            }),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    AnimatedContent(
+                                                                        targetState = isPlaying.value,
+                                                                        transitionSpec = {
+                                                                            (scaleIn(
+                                                                                initialScale = 0.3f
+                                                                            ) + fadeIn()).togetherWith(
+                                                                                scaleOut(
+                                                                                    targetScale = 0.3f
+                                                                                ) + fadeOut()
+                                                                            )
+                                                                        }) {
+                                                                        if (it) {
+                                                                            Icon(
+                                                                                painterResource(
+                                                                                    id = R.drawable.ic_nowplaying_mp_pause
                                                                                 ),
-                                                                                onClick = {
-                                                                                    Vibrator.click(
-                                                                                        context
-                                                                                    )
-                                                                                    isPlaying.value =
-                                                                                        !isPlaying.value
-                                                                                    if (isPlaying.value) {
-                                                                                        MediaController.mediaControl?.fadePlay()
-                                                                                    } else {
-                                                                                        MediaController.mediaControl?.fadePause()
-                                                                                    }
-                                                                                }),
-                                                                        contentAlignment = Alignment.Center
-                                                                    ) {
-                                                                        AnimatedContent(
-                                                                            targetState = isPlaying.value,
-                                                                            transitionSpec = {
-                                                                                (scaleIn(
-                                                                                    initialScale = 0.3f
-                                                                                ) + fadeIn()).togetherWith(
-                                                                                    scaleOut(
-                                                                                        targetScale = 0.3f
-                                                                                    ) + fadeOut()
-                                                                                )
-                                                                            }) {
-                                                                            if (it) {
-                                                                                Icon(
-                                                                                    painterResource(
-                                                                                        id = R.drawable.ic_nowplaying_mp_pause
-                                                                                    ),
-                                                                                    contentDescription = "Pause",
-                                                                                    modifier = Modifier
-                                                                                        .fillMaxSize(),
-                                                                                    tint = Color.Black withNight Color.White
-                                                                                )
-                                                                            } else {
-                                                                                Icon(
-                                                                                    painterResource(
-                                                                                        id = R.drawable.ic_nowplaying_mp_play
-                                                                                    ),
-                                                                                    contentDescription = "Play",
-                                                                                    modifier = Modifier
-                                                                                        .fillMaxSize(),
-                                                                                    tint = Color.Black withNight Color.White
-                                                                                )
-                                                                            }
+                                                                                contentDescription = "Pause",
+                                                                                modifier = Modifier
+                                                                                    .fillMaxSize(),
+                                                                                tint = Color.Black withNight Color.White
+                                                                            )
+                                                                        } else {
+                                                                            Icon(
+                                                                                painterResource(
+                                                                                    id = R.drawable.ic_nowplaying_mp_play
+                                                                                ),
+                                                                                contentDescription = "Play",
+                                                                                modifier = Modifier
+                                                                                    .fillMaxSize(),
+                                                                                tint = Color.Black withNight Color.White
+                                                                            )
                                                                         }
                                                                     }
-                                                                    Spacer(
-                                                                        modifier = Modifier.width(
-                                                                            18.dp
-                                                                        )
+                                                                }
+                                                                Spacer(
+                                                                    modifier = Modifier.width(
+                                                                        18.dp
                                                                     )
-                                                                    Box(
-                                                                        modifier = Modifier
-                                                                            .size(36.dp)
-                                                                            .clickable(
-                                                                                interactionSource = remember { MutableInteractionSource() },
-                                                                                indication = ripple(
-                                                                                    bounded = false
-                                                                                ),
-                                                                                onClick = {
-                                                                                    Vibrator.click(
-                                                                                        context
-                                                                                    )
-                                                                                    MediaController.mediaControl?.seekToNextMediaItem()
-                                                                                }),
-                                                                        contentAlignment = Alignment.Center
-                                                                    ) {
-                                                                        Icon(
-                                                                            painterResource(
-                                                                                id = R.drawable.ic_nowplaying_mp_fforward
+                                                                )
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .size(36.dp)
+                                                                        .clickable(
+                                                                            interactionSource = remember { MutableInteractionSource() },
+                                                                            indication = ripple(
+                                                                                bounded = false
                                                                             ),
-                                                                            contentDescription = "Next",
-                                                                            modifier = Modifier
-                                                                                .fillMaxSize(),
-                                                                            tint = Color.Black withNight Color.White
-                                                                        )
-                                                                    }
+                                                                            onClick = {
+                                                                                Vibrator.click(
+                                                                                    context
+                                                                                )
+                                                                                MediaController.mediaControl?.seekToNextMediaItem()
+                                                                            }),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Icon(
+                                                                        painterResource(
+                                                                            id = R.drawable.ic_nowplaying_mp_fforward
+                                                                        ),
+                                                                        contentDescription = "Next",
+                                                                        modifier = Modifier
+                                                                            .fillMaxSize(),
+                                                                        tint = Color.Black withNight Color.White
+                                                                    )
                                                                 }
                                                             }
                                                         }
@@ -1042,8 +1031,8 @@ class MainActivity : BaseActivity() {
                                 }
                             }
                         }
-                    /*}*/
-                }
+                    }
+                /*}*/
             }
         }
     }
@@ -1111,84 +1100,6 @@ class MainActivity : BaseActivity() {
         }
     }
 
-
-    /*LaunchedEffect(permissionState.value) {
-            val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.READ_MEDIA_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED
-            } else {
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED
-            }
-
-            if (hasPermission) {
-                permissionState.value = PermissionState.DENIED
-                loadMusic(context)
-            }
-        }
-
-        val showDialog = remember("CheckPermission_showDialog") {
-            derivedStateOf { permissionState.value != PermissionState.DENIED  }
-        }
-
-        if (showDialog.value) {
-            val dialogProperties = ModalBottomSheetProperties(
-                securePolicy = SecureFlagPolicy.Inherit,
-                isFocusable = true,
-                shouldDismissOnBackPress = false
-            )
-
-            val bottomSheetState = rememberModalBottomSheetState()
-            val scope = rememberCoroutineScope()
-
-            YosWrapper {
-                OptionDialog(
-                    title = stringResource(id = R.string.permission_grant_title),
-                    subTitle = stringResource(id = R.string.permission_grant_subtitle),
-                    content = {
-                        Text(text = stringResource(id = R.string.permission_grant_desc))
-                    },
-                    positiveContent = stringResource(id = R.string.permission_grant_button_positive),
-                    properties = dialogProperties,
-                    bottomSheetState = bottomSheetState,
-                    onPositive = {
-                        scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
-                            if (!bottomSheetState.isVisible) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
-                                } else {
-                                    requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                                }
-                                permissionState.value = PermissionState.DENIED
-                            }
-                        }
-                    },
-                    negativeContent = stringResource(id = R.string.permission_grant_button_negative),
-                    onNegative = {
-                        scope.launch { bottomSheetState.hide() }.invokeOnCompletion {
-                            if (!bottomSheetState.isVisible) {
-                                mainMusicList.value = mutableListOf()
-                                permissionState.value = PermissionState.DENIED
-                            }
-                        }
-                    }
-                ) {
-                    mainMusicList.value = mutableListOf()
-                    permissionState.value = PermissionState.DENIED
-                }
-            }
-        }*/
-
-    /*enum class PermissionState {
-        UNKNOWN,
-        GRANTED,
-        DENIED
-    }*/
-
     private fun loadMusic(context: Context, enforce: Boolean = false) {
         val needRefresh = SettingsLibrary.RefreshEveryTime
         if (needRefresh || enforce) {
@@ -1201,6 +1112,25 @@ class MainActivity : BaseActivity() {
         }
     }
 
+}
+
+/**
+ * Sets the appearance (light/dark icons) of the system status and navigation bars.
+ * Replaces the deprecated Accompanist `rememberSystemUiController()`.
+ * Bar colors are already transparent by default via `enableEdgeToEdge()`.
+ */
+@Composable
+private fun SetSystemBarsAppearance(view: android.view.View, darkIcons: Boolean) {
+    val activity = LocalContext.current as? Activity
+    DisposableEffect(darkIcons) {
+        val window = activity?.window
+        if (window != null && !view.isInEditMode) {
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = darkIcons
+            controller.isAppearanceLightNavigationBars = darkIcons
+        }
+        onDispose {}
+    }
 }
 
 fun readFile(path: String): String? {
