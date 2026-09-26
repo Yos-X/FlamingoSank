@@ -1,0 +1,43 @@
+# Basic safety net for pull requests: the repo had no CI at all before this, so every PR could
+# land without ever having been built. Builds the debug variant, runs unit tests, and runs lint.
+# Does not create releases or artifacts.
+name: PR Verification
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build, Test & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Run lint
+        run: ./gradlew lintDebug
