@@ -25,6 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The repo's gradlew was committed without its executable bit (a known issue with
+      # files added via GitHub's web upload), so runners refuse to execute it directly.
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
       - name: Validate changelog
         run: python3 .github/scripts/validate_changelog.py validate CHANGELOG.md
 
