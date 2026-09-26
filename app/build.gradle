@@ -13,8 +13,10 @@ android {
         applicationId "yos.music.player"
         minSdk 23
         targetSdk 34
-        versionCode 1
-        versionName "1.0.0"
+        // Overridable via -PpearVersionCode / -PpearVersionName (used by Release Build CI,
+        // which derives both from CHANGELOG.md). Local/debug builds keep these defaults.
+        versionCode project.hasProperty("pearVersionCode") ? (project.property("pearVersionCode") as Integer) : 1
+        versionName project.hasProperty("pearVersionName") ? project.property("pearVersionName") : "1.0.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
@@ -26,11 +28,27 @@ android {
         renderscriptSupportModeEnabled true
     }
 
+    // Populated by Release Build CI from GitHub Secrets (PEAR_KEYSTORE_FILE points at a
+    // keystore decoded to a temp path; the rest are passed straight through). Left unset,
+    // this signingConfig block does nothing and `release` builds unsigned, exactly as before.
+    signingConfigs {
+        release {
+            def storeFilePath = System.getenv("PEAR_KEYSTORE_FILE")
+            if (storeFilePath) {
+                storeFile file(storeFilePath)
+                storePassword System.getenv("PEAR_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("PEAR_KEY_ALIAS")
+                keyPassword System.getenv("PEAR_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
             zipAlignEnabled true
             shrinkResources true
+            signingConfig System.getenv("PEAR_KEYSTORE_FILE") ? signingConfigs.release : null
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             applicationVariants.all { variant ->
                 variant.outputs.all {
