@@ -131,7 +131,6 @@ import yos.music.player.ui.pages.library.playlists.PlayLists
 import yos.music.player.ui.pages.settings.Settings
 import yos.music.player.ui.pages.settings.audio.exoPlayer.ExoPlayerSettings
 import yos.music.player.ui.pages.settings.audio.exoPlayer.MediaCodec
-import yos.music.player.ui.pages.settings.extend.statusBarLyric.LyricGetter
 import yos.music.player.ui.pages.settings.library.LibraryOverview
 import yos.music.player.ui.pages.settings.others.About
 import yos.music.player.ui.pages.settings.performance.LyricSetting
@@ -469,9 +468,6 @@ class MainActivity : BaseActivity() {
                                             }
                                             composable(UI.Settings.LibraryOverview) {
                                                 LibraryOverview(navController)
-                                            }
-                                            composable(UI.Settings.LyricGetter) {
-                                                LyricGetter(navController)
                                             }
                                             composable(ExoplayerSetting) {
                                                 ExoPlayerSettings(navController)
