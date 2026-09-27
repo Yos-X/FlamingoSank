@@ -1,0 +1,32 @@
+# Validates the format of CHANGELOG.md only. Does not build the app or create releases.
+name: Changelog Validation
+
+on:
+  pull_request:
+    paths:
+      - CHANGELOG.md
+  push:
+    branches:
+      - master
+    paths:
+      - CHANGELOG.md
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate CHANGELOG.md
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v4
+
+      - name: Validate changelog
+        run: python3 .github/scripts/validate_changelog.py validate CHANGELOG.md

@@ -1,0 +1,144 @@
+# Manually triggered. CHANGELOG.md is the only source of truth for the release version: the
+# newest "## [X.Y.Z]" section (skipping "[Unreleased]") becomes the release version, the Git
+# tag, and the GitHub Release body. Nightly builds are a separate workflow (nightly_build.yml)
+# and never publish a GitHub Release.
+name: Release Build
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Validate, Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The repo's gradlew was committed without its executable bit (a known issue with
+      # files added via GitHub's web upload), so runners refuse to execute it directly.
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Validate changelog
+        run: python3 .github/scripts/validate_changelog.py validate CHANGELOG.md
+
+      - name: Determine release version
+        id: version
+        run: |
+          set -e
+          VERSION=$(python3 .github/scripts/validate_changelog.py latest CHANGELOG.md)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure this version hasn't already been released
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          TAG="v${{ steps.version.outputs.version }}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists. Add a new version section to CHANGELOG.md before releasing again." >&2
+            exit 1
+          fi
+
+      - name: Get changelog section for this version
+        id: changelog
+        run: |
+          {
+            echo "body<<CHANGELOG_EOF"
+            python3 .github/scripts/validate_changelog.py section CHANGELOG.md "${{ steps.version.outputs.version }}"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Ensure signing secrets are configured
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "::error::KEYSTORE_BASE64 is not set. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD to the repo's Actions secrets before running a release build." >&2
+            exit 1
+          fi
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android build-tools
+        run: ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Derived straight from the changelog version so there's no second, independent version
+      # counter to keep in sync by hand (e.g. 1.2.0 -> 10200). This only affects CI builds -
+      # local/debug builds keep using the versionCode/versionName already in app/build.gradle.
+      - name: Compute versionCode from the release version
+        id: version_code
+        run: |
+          set -e
+          IFS='.' read -r major minor patch <<< "${{ steps.version.outputs.version }}"
+          echo "code=$((10#$major * 10000 + 10#$minor * 100 + 10#$patch))" >> "$GITHUB_OUTPUT"
+
+      - name: Decode signing keystore
+        id: signing
+        run: |
+          set -e
+          KEYSTORE_PATH="$RUNNER_TEMP/pear-release.jks"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$KEYSTORE_PATH"
+          echo "path=$KEYSTORE_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        env:
+          PEAR_KEYSTORE_FILE: ${{ steps.signing.outputs.path }}
+          PEAR_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          PEAR_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          PEAR_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease \
+            "-PpearVersionName=${{ steps.version.outputs.version }}" \
+            "-PpearVersionCode=${{ steps.version_code.outputs.code }}"
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "${{ steps.signing.outputs.path }}"
+
+      - name: Run unit tests
+        run: ./gradlew testReleaseUnitTest
+
+      - name: Locate built APK
+        id: apk
+        run: |
+          set -e
+          APK=$(find app/build/outputs/apk/release -maxdepth 1 \( -iname '*.apk' \) | head -n1)
+          if [ -z "$APK" ]; then
+            echo "::error::No release APK found under app/build/outputs/apk/release." >&2
+            exit 1
+          fi
+          DEST="Pear-v${{ steps.version.outputs.version }}.apk"
+          cp "$APK" "$DEST"
+          echo "path=$DEST" >> "$GITHUB_OUTPUT"
+
+      # Rely on the platform's own verifier rather than re-deriving signature validity
+      # ourselves, and fail the job (rather than silently publishing) if it doesn't verify.
+      - name: Verify APK signature
+        run: "${ANDROID_SDK_ROOT}/build-tools/34.0.0/apksigner verify \"${{ steps.apk.outputs.path }}\""
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: ${{ steps.apk.outputs.path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
