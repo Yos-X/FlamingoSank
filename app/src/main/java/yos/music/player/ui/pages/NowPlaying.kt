@@ -1391,6 +1391,11 @@ fun RowScope.AirPlay() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 contextCompose.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
             } else {
+                // RECEIVER_EXPORTED/RECEIVER_NOT_EXPORTED only exist from API 33 (TIRAMISU)
+                // onward - exactly the SDK_INT guard above - so this is the correct, only
+                // overload available on older devices. Lint can't see that this branch is
+                // unreachable on API 33+, so it flags it as if the flag were just missing.
+                //noinspection UnspecifiedRegisterReceiverFlag
                 contextCompose.registerReceiver(receiver, filter)
             }
 
