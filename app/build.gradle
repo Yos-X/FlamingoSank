@@ -10,7 +10,7 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId "yos.music.player"
+        applicationId "rotatsu.yos.music.player"
         minSdk 23
         targetSdk 34
         // Overridable via -PpearVersionCode / -PpearVersionName (used by Release Build CI,
@@ -44,6 +44,11 @@ android {
     }
 
     buildTypes {
+        // Debug is what Nightly Build ships. The suffix lets it install next to the release app;
+        // its launcher name ("Pear Nightly") comes from src/debug/res.
+        debug {
+            applicationIdSuffix ".nightly"
+        }
         release {
             minifyEnabled true
             zipAlignEnabled true
@@ -52,7 +57,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             applicationVariants.all { variant ->
                 variant.outputs.all {
-                    def appName = "Flamingo"
+                    def appName = "Pear"
                     def versionName = variant.versionName
                     def date = new Date().format('yyMMddHHmm')
                     outputFileName = "${appName}_${versionName}_${date}.ApK"
