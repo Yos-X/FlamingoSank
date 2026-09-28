@@ -8,3 +8,5 @@ All notable changes to this project will be documented in this file.
 - `Other` - Technical changes, dependency updates, refactoring, build changes, or changes that do not fit the other categories.
 
 ## [Unreleased]
+### Changes
+* Removed the Xposed-based status bar lyrics feature. Pear no longer needs root or Xposed.

@@ -183,26 +183,6 @@ object SettingsLibrary {
     )
 
     /**
-     * 状态栏歌词
-     */
-    @Stable
-    var StatusBarLyricEnabled by mutableDataSaverStateOf(
-        dataSaverInterface = SettingsSaver,
-        key = "statusBarLyricEnabled",
-        initialValue = false
-    )
-
-    /**
-     * 状态栏歌词 Hook 状态
-     */
-    @Stable
-    var StatusBarLyricHooked by mutableDataSaverStateOf(
-        dataSaverInterface = SettingsSaver,
-        key = "statusBarLyricHooked",
-        initialValue = false
-    )
-
-    /**
      * ExoPlayer行为 - 音频属性
      */
     @Stable

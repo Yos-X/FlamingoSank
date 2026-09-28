@@ -32,10 +32,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
-import cn.lyric.getter.api.API
-import cn.lyric.getter.api.data.ExtraData
-import cn.lyric.getter.api.tools.Tools
-import com.blankj.utilcode.util.ResourceUtils.getDrawable
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -87,19 +83,7 @@ object MediaController {
 
     fun onServiceRunning() {
         val handler by lazy { Handler(Looper.getMainLooper()) }
-        val lyricAPI by lazy { API() }
         var lastLyric = listOf<Pair<Float, String>>()
-        val base64 = Tools.drawableToBase64(getDrawable(R.drawable.flamingo_icon_notification)!!)
-        var statusBarLyricEnabled: Boolean
-        var hooked = false
-
-        val checkHookStatusRunnable = object : Runnable {
-            override fun run() {
-                hooked = lyricAPI.hasEnable
-                SettingsLibrary.StatusBarLyricHooked = hooked
-                handler.postDelayed(this, 350)
-            }
-        }
 
         val updateLyricsRunnable = object : Runnable {
             override fun run() {
@@ -123,38 +107,15 @@ object MediaController {
                                     line.first().first >= liveTime
                                 }
 
-                                val sendLyric = fun() {
+                                val updateLyricIndex = fun() {
                                     try {
                                         MainViewModelObject.syncLyricIndex.intValue =
                                             currentLyricIndex
-                                        statusBarLyricEnabled =
-                                            SettingsLibrary.StatusBarLyricEnabled
-
 
                                         val line = lrcEntries[currentLyricIndex]
                                         if (line == lastLyric) {
                                             return
                                         }
-
-                                        val lyric = StringBuffer("")
-                                        line.forEachIndexed { charIndex, char ->
-                                            if (charIndex >= line.size - 1) return@forEachIndexed
-                                            lyric.append(char.second)
-                                        }
-
-                                        val lyricResult = lyric.toString()
-
-                                        if (statusBarLyricEnabled && hooked) {
-                                            lyricAPI.sendLyric(
-                                                lyricResult,
-                                                extra = ExtraData().apply {
-                                                    customIcon = true
-                                                    base64Icon = base64
-                                                }
-                                            )
-                                        }
-
-                                        // YosPlaybackService().sendLyricTicker(lyricResult)
 
                                         lastLyric = line
                                     } catch (_: Exception) {
@@ -166,12 +127,12 @@ object MediaController {
                                         currentLyricIndex = nextIndex - 1
                                     }
                                     if (currentLyricIndex != -1) {
-                                        sendLyric()
+                                        updateLyricIndex()
                                     }
                                 } else if (currentLyricIndex != lrcEntries.size - 1) {
                                     currentLyricIndex = lrcEntries.size - 1
                                     if (currentLyricIndex != -1) {
-                                        sendLyric()
+                                        updateLyricIndex()
                                     }
                                 }
                             }
@@ -184,7 +145,6 @@ object MediaController {
         }
 
         CoroutineScope(Dispatchers.IO).launch {
-            handler.post(checkHookStatusRunnable)
             handler.post(updateLyricsRunnable)
         }
     }
@@ -746,4 +706,3 @@ class YosPlaybackService : MediaSessionService() {
         controllerInfo: MediaSession.ControllerInfo
     ): MediaSession? = mediaSession
 }
-

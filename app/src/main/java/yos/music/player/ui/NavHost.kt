@@ -33,7 +33,6 @@ interface UI {
             const val Main = "Main"
             const val LibraryOverview = "LibraryOverview"
 
-            const val LyricGetter = "LyricGetter"
             const val ExoplayerSetting = "ExoplayerSetting"
             const val About = "About"
             const val MediaCodec = "MediaCodec"
