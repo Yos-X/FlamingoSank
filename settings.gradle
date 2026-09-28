@@ -22,6 +22,6 @@ dependencyResolutionManagement {
         maven { url 'https://maven.aliyun.com/repository/public' }
     }
 }
-rootProject.name = "Flamingo"
+rootProject.name = "Pear"
 include ':app'
 include ':overscroll_core'
