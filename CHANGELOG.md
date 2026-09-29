@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 - `Other` - Technical changes, dependency updates, refactoring, build changes, or changes that do not fit the other categories.
 
 ## [Unreleased]
+### Additions
+* Read synced lyrics embedded in audio tags (`LYRICS`, `LYRICSENG`, `UNSYNCEDLYRICS`, `SYNCEDLYRICS`, `USLT`, `SYLT`). A sidecar `.lrc` file is still used when no embedded lyrics are found.
+* TTML lyrics (embedded or as a `.ttml` file next to the song) with word-level timing, translation and transliteration. TTML parsing is adapted from Flamingo.
 ### Changes
 * Removed the Xposed-based status bar lyrics feature. Pear no longer needs root or Xposed.
 * Renamed the app from Flamingo to Pear.
