@@ -27,7 +27,7 @@
     <string name="settings_play_history_desc">此设备上播放的音乐将出现在“最近播放”、“年度回忆”歌单中。</string>
     <string name="settings_others">其它</string>
     <string name="settings_others_about">关于</string>
-    <string name="settings_others_about_desc">关于 Flamingo。</string>
+    <string name="settings_others_about_desc">关于 Pear。</string>
     <string name="settings_audio_fade_in_out_desc">播放 / 暂停时音量淡入 / 淡出。</string>
     <string name="tip_no_lyrics">歌词未就绪</string>
     <string name="tip_scan_finished">扫描完毕，共 %d 首歌曲。</string>

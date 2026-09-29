@@ -26,8 +26,8 @@
     <string name="settings_play_history">再生履歴を使用</string>
     <string name="settings_play_history_desc">このデバイスで再生された音楽は、「最近再生した曲」、「年間の思い出」のプレイリストに表示されます。</string>
     <string name="settings_others">その他</string>
-    <string name="settings_others_about">Flamingo について</string>
-    <string name="settings_others_about_desc">Flamingo について。</string>
+    <string name="settings_others_about">Pear について</string>
+    <string name="settings_others_about_desc">Pear について。</string>
     <string name="settings_audio_fade_in_out_desc">再生 / 一時停止時に音量をフェードイン / フェードアウトします。</string>
     <string name="tip_no_lyrics">歌詞が準備できていません</string>
     <string name="tip_scan_finished">スキャン完了、合計 %d 曲。</string>
