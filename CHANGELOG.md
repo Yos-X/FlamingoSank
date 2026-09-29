@@ -12,3 +12,5 @@ All notable changes to this project will be documented in this file.
 * Removed the Xposed-based status bar lyrics feature. Pear no longer needs root or Xposed.
 * Renamed the app from Flamingo to Pear.
 * Changed the application ID to `rotatsu.yos.music.player`. Nightly builds use `rotatsu.yos.music.player.nightly` and show as "Pear Nightly", so they can be installed next to the release app.
+### Other
+* Updated TagLib to 1.0.0-alpha25.

@@ -151,7 +151,7 @@ dependencies {
 
     implementation 'com.google.code.gson:gson:2.10.1'
 
-    implementation "com.github.Kyant0:taglib:1.0.0-alpha22"
+    implementation "com.github.Kyant0:taglib:1.0.0-alpha25"
 
     implementation "com.google.accompanist:accompanist-pager:0.20.2"
 
