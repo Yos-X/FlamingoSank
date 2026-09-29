@@ -49,6 +49,7 @@ import yos.music.player.code.MediaController.mediaSession
 import yos.music.player.code.MediaController.musicPlaying
 import yos.music.player.code.MediaController.onServiceRunning
 import yos.music.player.code.utils.lrc.YosLrcFactory
+import yos.music.player.code.utils.lrc.YosTtmlFactory
 import yos.music.player.code.utils.player.FadeExo
 import yos.music.player.code.utils.player.FadeExo.fadePause
 import yos.music.player.code.utils.player.FadeExo.fadePlay
@@ -460,16 +461,28 @@ class YosPlaybackService : MediaSessionService() {
 
                         val thisPath = path?.path
 
-                        val finalLrcContent = if (lrcContent == null) {
-                            val lrcPath = "${thisPath?.substringBeforeLast(".")}.lrc"
-                            println("获取歌词元数据失败，将读取：$lrcPath")
-                            AudioMetadataUtils.loadLrcFile(this@YosPlaybackService, lrcPath) ?: ""
-                        } else {
-                            lrcContent
-                        }
+                        val embeddedLyrics = thisPath?.let { AudioMetadataUtils.loadEmbeddedLyrics(it) }
+                        val ttmlResult = (embeddedLyrics ?: thisPath?.let { AudioMetadataUtils.loadTtmlFile(it) })
+                            ?.let { YosTtmlFactory().formatTtmlEntries(it) }
 
-                        val lrcFactory = YosLrcFactory()
-                        lrcEntries.value = lrcFactory.formatLrcEntries(finalLrcContent)
+                        if (ttmlResult != null) {
+                            MediaViewModelObject.otherSideForLines.clear()
+                            MediaViewModelObject.otherSideForLines.addAll(ttmlResult.otherSideForLines)
+                            lrcEntries.value = ttmlResult.entries
+                        } else {
+                            lrcContent = embeddedLyrics?.takeUnless { YosTtmlFactory.isTtml(it) }
+
+                            val finalLrcContent = if (lrcContent == null) {
+                                val lrcPath = "${thisPath?.substringBeforeLast(".")}.lrc"
+                                println("获取歌词元数据失败，将读取：$lrcPath")
+                                AudioMetadataUtils.loadLrcFile(this@YosPlaybackService, lrcPath) ?: ""
+                            } else {
+                                lrcContent
+                            }
+
+                            val lrcFactory = YosLrcFactory()
+                            lrcEntries.value = lrcFactory.formatLrcEntries(finalLrcContent)
+                        }
 
                         if (thisPath != null) {
                             // MediaViewModelObject.isDolby.value = thisPath.endsWith(".m4a")

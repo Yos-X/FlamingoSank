@@ -7,10 +7,38 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import com.kyant.taglib.AudioPropertiesReadStyle
 import com.kyant.taglib.TagLib
+import yos.music.player.code.utils.lrc.YosTtmlFactory
 import java.io.File
 import java.nio.charset.Charset
 
 object AudioMetadataUtils {
+    private val embeddedLyricKeys = listOf(
+        "LYRICS", "LYRICSENG", "UNSYNCEDLYRICS", "SYNCEDLYRICS", "USLT", "SYLT"
+    )
+    private val lrcTimestamp = Regex("""\[\d{1,3}:\d{2}""")
+
+    // Approach adapted from shouryadixitisverycool/Flamingo
+    fun loadEmbeddedLyrics(filePath: String): String? {
+        return try {
+            ParcelFileDescriptor.open(File(filePath), ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+                val props = TagLib.getMetadata(fd.dup().detachFd(), false)?.propertyMap
+                    ?: return@use null
+                embeddedLyricKeys.firstNotNullOfOrNull { key ->
+                    props[key]?.firstOrNull { lrcTimestamp.containsMatchIn(it) || YosTtmlFactory.isTtml(it) }?.trim()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    fun loadTtmlFile(audioPath: String): String? {
+        val file = File("${audioPath.substringBeforeLast(".")}.ttml")
+        if (!file.isFile) return null
+        return runCatching { file.readText() }.getOrNull()
+    }
+
     fun loadLrcFile(context: Context, filePath: String): String? {
         return try {
             val file = File(filePath)
