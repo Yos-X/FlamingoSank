@@ -6,7 +6,7 @@ import org.xml.sax.InputSource
 import java.io.StringReader
 import javax.xml.parsers.DocumentBuilderFactory
 
-// Adapted from Flamingo's TTML parser.
+// Adapted from the TTML parser in shouryadixitisverycool/Flamingo.
 class YosTtmlFactory {
     class Result(
         val entries: List<List<Pair<Float, String>>>,

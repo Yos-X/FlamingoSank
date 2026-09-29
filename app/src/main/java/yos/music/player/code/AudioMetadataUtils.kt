@@ -17,7 +17,7 @@ object AudioMetadataUtils {
     )
     private val lrcTimestamp = Regex("""\[\d{1,3}:\d{2}""")
 
-    // Approach adapted from Flamingo
+    // Approach adapted from shouryadixitisverycool/Flamingo
     fun loadEmbeddedLyrics(filePath: String): String? {
         return try {
             ParcelFileDescriptor.open(File(filePath), ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
