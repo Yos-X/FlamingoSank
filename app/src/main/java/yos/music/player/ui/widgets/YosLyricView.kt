@@ -65,6 +65,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -136,6 +137,7 @@ fun YosLyricView(
     val subTextBasicColor = Color(uiConfig.subTextBasicColor)
     //Color(0xFF919191)
     val otherSideForLines = MediaViewModelObject.otherSideForLines
+    val transliterationForLines = MediaViewModelObject.transliterationForLines
 
     val lrcEntries = lrcEntriesLambda()
 
@@ -402,6 +404,10 @@ fun YosLyricView(
                             str.ifBlank { null }
                         }
 
+                        val transliteration = remember(index) {
+                            transliterationForLines.getOrNull(index)?.ifBlank { null }
+                        }
+
                         val blur = remember(index) {
                             derivedStateOf {
                                 if (!showStateAnimation.value || index == currentLyricIndex.intValue || !blurLambda() || !supportBlur) {
@@ -428,6 +434,7 @@ fun YosLyricView(
                                 },
                                 mainLyric = lines.dropLast(1),
                                 translation,
+                                transliteration,
                                 translationLambda(),
                                 //mainTextSize = uiConfig.mainTextSize,
                                 subTextSize = uiConfig.subTextSize,
@@ -860,6 +867,7 @@ fun LazyItemScope.LyricItem(
     isTopLambda: () -> Boolean,
     mainLyric: List<Pair<Float, String>>,
     translation: String?,
+    transliteration: String?,
     showTranslation: Boolean,
     //mainTextSize: Int,
     subTextSize: Int,
@@ -1090,6 +1098,34 @@ fun LazyItemScope.LyricItem(
                                             delay = 80
                                         )
                                     }
+
+                                YosWrapper {
+                                    AnimatedVisibility(showTranslation && transliteration != null) {
+                                        transliteration?.let {
+                                            val transliterationAlpha = animateFloatAsState(
+                                                targetValue = if (isCurrentLambda()) 0.5f else 0.14f,
+                                                animationSpec = if (isCurrentLambda()) alphaTweenSpecWithDelay else alphaTweenSpecWithoutDelay
+                                            )
+
+                                            Text(
+                                                text = it,
+                                                fontSize = subTextSize.sp,
+                                                color = subTextBasicColor,
+                                                fontWeight = FontWeight.Normal,
+                                                modifier = Modifier
+                                                    .graphicsLayer {
+                                                        this.alpha = transliterationAlpha.value
+                                                        compositingStrategy =
+                                                            CompositingStrategy.ModulateAlpha
+                                                    }
+                                                    .padding(horizontal = 20.dp),
+                                                lineHeight = (subTextSize + 5).sp,
+                                                letterSpacing = 0.3.sp,
+                                                textAlign = textAlign
+                                            )
+                                        }
+                                    }
+                                }
 
                                 YosWrapper {
                                     val thisAlphaAnimated = animateFloatAsState(
@@ -1333,6 +1369,14 @@ fun LazyItemScope.LyricItem(
 
                                                         ((liveTime.intValue - thisWordLastTime) / thisWordAverageTime)
 
+                                                    },
+                                                    glow = {
+                                                        heldGlow(
+                                                            liveTime.intValue.toFloat(),
+                                                            thisWordGroupLastTime,
+                                                            word.first,
+                                                            thisWord.length
+                                                        )
                                                     }
                                                 ).also {
                                                     sum += charWord.length
@@ -1343,13 +1387,27 @@ fun LazyItemScope.LyricItem(
 
                                         onDrawBehind {
                                             wordsToDraw.fastForEach { l ->
+                                                val glow = if (l.percent() > 0f) {
+                                                    GLOW_BASE + (1f - GLOW_BASE) * l.glow()
+                                                } else {
+                                                    0f
+                                                }
                                                 drawText(
                                                     textLayoutResult = l.layout,
                                                     topLeft = l.topLeft,
                                                     brush = l.brush(
                                                         0.3f,
                                                         l.percent()
-                                                    )
+                                                    ),
+                                                    shadow = if (glow > 0.01f) {
+                                                        Shadow(
+                                                            color = focusedColor.copy(alpha = glow * GLOW_ALPHA),
+                                                            offset = Offset.Zero,
+                                                            blurRadius = GLOW_RADIUS_DP.dp.toPx()
+                                                        )
+                                                    } else {
+                                                        null
+                                                    }
                                                 )
                                             }
                                         }
@@ -1536,8 +1594,30 @@ private data class DrawWord(
     val layout: TextLayoutResult,
     val topLeft: Offset,
     val brush: (px: Float, percent: Float) -> Brush,
-    val percent: () -> Float
+    val percent: () -> Float,
+    val glow: () -> Float = { 0f }
 )
+
+private const val GLOW_ALPHA = 0.62f
+private const val GLOW_BASE = 0.22f
+private const val GLOW_RADIUS_DP = 6
+private const val GLOW_FADE_MS = 500f
+private const val GLOW_MIN_HELD_MS = 1000f
+private const val GLOW_MS_PER_CHAR = 150f
+
+// Extra glow on words held long enough. Idea from kushagrasinghx/BitChord.
+private fun heldGlow(live: Float, start: Float, end: Float, length: Int): Float {
+    val held = end - start
+    if (length == 0 || live < start || held < maxOf(GLOW_MIN_HELD_MS, length * GLOW_MS_PER_CHAR)) {
+        return 0f
+    }
+    return if (live <= end) {
+        val progress = (live - start) / held
+        progress * progress
+    } else {
+        (1f - (live - end) / GLOW_FADE_MS).coerceIn(0f, 1f)
+    }
+}
 
 /*
 fun processWords(input: String): List<String> {
