@@ -26,6 +26,7 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.EaseOutQuart
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -352,13 +353,13 @@ fun NowPlaying(
                         Modifier
                             .fillMaxWidth()
                             .statusBarsPadding()
-                            .padding(top = 20.dp), contentAlignment = Alignment.Center
+                            .padding(top = 14.dp), contentAlignment = Alignment.Center
                     ) {
                         Box(
                             Modifier
                                 .overlayEffect()
                                 .size(
-                                    width = 32.dp,
+                                    width = 60.dp,
                                     height = 4.5.dp
                                 )
                                 .background(Color(0x4DFFFFFF), RoundedCornerShape(2.25.dp))
@@ -1577,6 +1578,10 @@ private fun PlayerControl(
                 // 进度条
                 YosWrapper {
                     //println("重组：控制区域内部 - 进度条")
+                    val trackHeight = animateDpAsState(
+                        targetValue = if (isSliding.value) 8.dp else 4.dp,
+                        animationSpec = TweenSpec(durationMillis = 220, easing = EaseOutQuart)
+                    )
                     Slider(
                         value = sliderPosition.floatValue,
                         onValueChange = { newValue ->
@@ -1612,7 +1617,7 @@ private fun PlayerControl(
                             Track(
                                 sliderPositions = SliderPositions(
                                     initialActiveRange = 0f..(sliderPosition.floatValue / playingDuration.longValue)
-                                ), height = 7.dp
+                                ), height = trackHeight.value
                             )
                         }
                     )
