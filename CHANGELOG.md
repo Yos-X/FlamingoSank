@@ -17,5 +17,8 @@ All notable changes to this project will be documented in this file.
 * Renamed the app from Flamingo to Pear.
 * Transliteration now shows above the lyric line, and translation below it.
 * Changed the application ID to `rotatsu.yos.music.player`. Nightly builds use `rotatsu.yos.music.player.nightly` and show as "Pear Nightly", so they can be installed next to the release app.
+* Calmer Now Playing background: lower saturation and a slightly darker tone.
+* Longer top handle in Now Playing, placed a little higher.
+* The playback progress bar is thinner and gets thicker while you drag it.
 ### Other
 * Updated TagLib to 1.0.0-alpha25.

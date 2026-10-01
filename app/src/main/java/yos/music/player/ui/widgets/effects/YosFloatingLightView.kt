@@ -207,7 +207,7 @@ fun imageResolve(image: Bitmap, moreLight: Boolean = false): Bitmap {
         paint.isDither = true
 
         val saturationMatrix = ColorMatrix()
-        saturationMatrix.setSaturation(3f)
+        saturationMatrix.setSaturation(1.8f)
 
         paint.colorFilter = ColorMatrixColorFilter(saturationMatrix)
         drawBitmap(resizedBitmap, 0f, 0f, paint)
@@ -219,7 +219,7 @@ fun imageResolve(image: Bitmap, moreLight: Boolean = false): Bitmap {
             drawColor((0xBFFFFFFF).toInt(), PorterDuff.Mode.OVERLAY)
         } else {
             drawColor((0x33000000).toInt(), PorterDuff.Mode.OVERLAY)
-            drawColor((0x40000000).toInt())
+            drawColor((0x59000000).toInt())
         }
     }
     resizedBitmap = Toolkit.blur(resizedBitmap, 25)
