@@ -39,6 +39,25 @@ class YosTtmlFactoryTest {
     }
 
     @Test
+    fun alignsTransliterationToWordsByIndex() {
+        val result = YosTtmlFactory().formatTtmlEntries(sample)!!
+        assertEquals(listOf(listOf("ni hao", "shi jie"), emptyList<String>()), result.transliterationWordsForLines)
+    }
+
+    @Test
+    fun alignsTransliterationByTimeWhenCountsDiffer() {
+        val ttml = """
+            <tt xmlns="http://www.w3.org/ns/ttml" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word">
+            <head><metadata><iTunesMetadata xmlns="http://music.apple.com/lyric-ttml-internal">
+            <transliterations><transliteration><text for="L1"><span begin="1.000" end="1.500">ni</span><span begin="1.500" end="2.500">hao ma</span></text></transliteration></transliterations>
+            </iTunesMetadata></metadata></head>
+            <body><div><p begin="1.000" end="2.500" itunes:key="L1"><span begin="1.000" end="1.500">你</span><span begin="1.500" end="2.000">好</span><span begin="2.000" end="2.500">吗</span></p></div></body></tt>
+        """.trimIndent()
+        val result = YosTtmlFactory().formatTtmlEntries(ttml)!!
+        assertEquals(listOf(listOf("ni", "hao ma", "")), result.transliterationWordsForLines)
+    }
+
+    @Test
     fun lineWithoutSubtitleEndsWithEmptyPair() {
         val second = YosTtmlFactory().formatTtmlEntries(sample)!!.entries[1]
         assertEquals(3000f to "", second.first())

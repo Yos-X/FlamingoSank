@@ -13,6 +13,7 @@ object MediaViewModelObject {
     val lrcEntries: MutableState<List<List<Pair<Float, String>>>> = mutableStateOf(listOf())
     val otherSideForLines = mutableStateListOf<Boolean>()
     val transliterationForLines = mutableStateListOf<String>()
+    val transliterationWordsForLines = mutableStateListOf<List<String>>()
 
     // var mainLyricLines = mutableStateListOf<AnnotatedString>()
 

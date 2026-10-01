@@ -11,10 +11,14 @@ class YosTtmlFactory {
     class Result(
         val entries: List<List<Pair<Float, String>>>,
         val otherSideForLines: List<Boolean>,
-        val transliterationForLines: List<String>
+        val transliterationForLines: List<String>,
+        // One entry per lyric word, empty when the line has no word-level transliteration
+        val transliterationWordsForLines: List<List<String>>
     )
 
     private class Word(val endTime: Float, val text: String)
+
+    private class Span(val begin: Float, val text: String)
 
     fun formatTtmlEntries(ttml: String): Result? {
         if (!isTtml(ttml)) return null
@@ -30,10 +34,12 @@ class YosTtmlFactory {
         val body = root.descendants("body").firstOrNull() ?: return null
         val translations = root.textByKey("translations")
         val transliterations = root.textByKey("transliterations")
+        val transliterationSpans = root.spansByKey("transliterations")
 
         val entries = mutableListOf<List<Pair<Float, String>>>()
         val otherSide = mutableListOf<Boolean>()
         val transliterationLines = mutableListOf<String>()
+        val transliterationWords = mutableListOf<List<String>>()
 
         body.descendants("p").forEach { line ->
             val begin = line.time("begin") ?: return@forEach
@@ -59,9 +65,26 @@ class YosTtmlFactory {
             entries.add(pairs)
             otherSide.add(line.attr("agent").equals("v2", ignoreCase = true))
             transliterationLines.add(key?.let { transliterations[it] }.orEmpty())
+            transliterationWords.add(
+                if (words.isEmpty()) emptyList()
+                else alignTransliteration(words, key?.let { transliterationSpans[it] }.orEmpty())
+            )
         }
 
-        return if (entries.isEmpty()) null else Result(entries, otherSide, transliterationLines)
+        return if (entries.isEmpty()) null
+        else Result(entries, otherSide, transliterationLines, transliterationWords)
+    }
+
+    // By index when the counts match, otherwise by the word each span starts in
+    private fun alignTransliteration(words: List<Word>, spans: List<Span>): List<String> {
+        if (spans.isEmpty()) return emptyList()
+        if (spans.size == words.size) return spans.map { it.text }
+        val aligned = List(words.size) { mutableListOf<String>() }
+        spans.forEach { span ->
+            val index = words.indexOfFirst { span.begin < it.endTime }.takeIf { it >= 0 } ?: words.lastIndex
+            aligned[index].add(span.text)
+        }
+        return aligned.map { it.joinToString(" ") }
     }
 
     private fun Element.words(lineBegin: Float): List<Word> {
@@ -100,6 +123,24 @@ class YosTtmlFactory {
                 val key = t.attr("for") ?: return@forEach
                 val text = t.textContent.collapse()
                 if (text.isNotEmpty() && key !in result) result[key] = text
+            }
+        }
+        return result
+    }
+
+    // Timed spans of the first text per line key inside <transliterations>
+    private fun Element.spansByKey(container: String): Map<String, List<Span>> {
+        val result = mutableMapOf<String, List<Span>>()
+        descendants(container).forEach { c ->
+            c.descendants("text").forEach { t ->
+                val key = t.attr("for") ?: return@forEach
+                if (key in result) return@forEach
+                val spans = t.descendants("span").mapNotNull { span ->
+                    val text = span.textContent.collapse()
+                    val begin = span.time("begin")
+                    if (text.isEmpty() || begin == null) null else Span(begin, text)
+                }
+                if (spans.isNotEmpty()) result[key] = spans
             }
         }
         return result
