@@ -1,0 +1,63 @@
+# Builds an arm64 debug APK for every pull request and uploads it as an Actions artifact,
+# so a PR can be tried on a device before it is merged. Uses the debug build type, which
+# Android Gradle Plugin signs with its built-in debug keystore, so no secrets are needed.
+name: PR APK
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build arm64 APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK (arm64-v8a)
+        run: ./gradlew assembleDebug -Pandroid.injected.build.abi=arm64-v8a
+
+      # With an injected ABI, AGP writes the APK under build/intermediates instead of
+      # build/outputs, so search the whole build directory.
+      - name: Locate built APK
+        id: apk
+        run: |
+          set -e
+          APK=$(find app/build -type f -iname '*.apk' | head -n1)
+          if [ -z "$APK" ]; then
+            echo "::error::No APK found under app/build." >&2
+            exit 1
+          fi
+          echo "APK: $APK"
+          echo "ABIs in APK:"
+          unzip -l "$APK" | grep -o 'lib/[^/]*/' | sort -u
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pear-pr-${{ github.event.pull_request.number }}-arm64
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 7

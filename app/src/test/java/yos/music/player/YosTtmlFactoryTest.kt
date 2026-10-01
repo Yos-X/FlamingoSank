@@ -29,7 +29,13 @@ class YosTtmlFactoryTest {
         assertEquals(1000f to "", first[0])
         assertEquals(1500f to "你好", first[1])
         assertEquals(2000f to " 世界", first[2])
-        assertEquals(1000f to "ni hao shi jie\nHello world", first.last())
+        assertEquals(1000f to "Hello world", first.last())
+    }
+
+    @Test
+    fun keepsTransliterationSeparatePerLine() {
+        val result = YosTtmlFactory().formatTtmlEntries(sample)!!
+        assertEquals(listOf("ni hao shi jie", ""), result.transliterationForLines)
     }
 
     @Test

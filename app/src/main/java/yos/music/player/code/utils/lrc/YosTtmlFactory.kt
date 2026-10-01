@@ -10,7 +10,8 @@ import javax.xml.parsers.DocumentBuilderFactory
 class YosTtmlFactory {
     class Result(
         val entries: List<List<Pair<Float, String>>>,
-        val otherSideForLines: List<Boolean>
+        val otherSideForLines: List<Boolean>,
+        val transliterationForLines: List<String>
     )
 
     private class Word(val endTime: Float, val text: String)
@@ -32,6 +33,7 @@ class YosTtmlFactory {
 
         val entries = mutableListOf<List<Pair<Float, String>>>()
         val otherSide = mutableListOf<Boolean>()
+        val transliterationLines = mutableListOf<String>()
 
         body.descendants("p").forEach { line ->
             val begin = line.time("begin") ?: return@forEach
@@ -48,18 +50,18 @@ class YosTtmlFactory {
 
             // Same shape YosLrcFactory produces for a line with a translation
             val key = line.attr("key")
-            val subtitle = listOfNotNull(key?.let { transliterations[it] }, key?.let { translations[it] })
-                .joinToString("\n")
-            if (subtitle.isNotEmpty()) {
+            val translation = key?.let { translations[it] }.orEmpty()
+            if (translation.isNotEmpty()) {
                 pairs.add(begin to "")
-                pairs.add(begin to subtitle)
+                pairs.add(begin to translation)
             }
 
             entries.add(pairs)
             otherSide.add(line.attr("agent").equals("v2", ignoreCase = true))
+            transliterationLines.add(key?.let { transliterations[it] }.orEmpty())
         }
 
-        return if (entries.isEmpty()) null else Result(entries, otherSide)
+        return if (entries.isEmpty()) null else Result(entries, otherSide, transliterationLines)
     }
 
     private fun Element.words(lineBegin: Float): List<Word> {

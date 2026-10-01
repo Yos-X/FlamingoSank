@@ -468,8 +468,11 @@ class YosPlaybackService : MediaSessionService() {
                         if (ttmlResult != null) {
                             MediaViewModelObject.otherSideForLines.clear()
                             MediaViewModelObject.otherSideForLines.addAll(ttmlResult.otherSideForLines)
+                            MediaViewModelObject.transliterationForLines.clear()
+                            MediaViewModelObject.transliterationForLines.addAll(ttmlResult.transliterationForLines)
                             lrcEntries.value = ttmlResult.entries
                         } else {
+                            MediaViewModelObject.transliterationForLines.clear()
                             lrcContent = embeddedLyrics?.takeUnless { YosTtmlFactory.isTtml(it) }
 
                             val finalLrcContent = if (lrcContent == null) {
